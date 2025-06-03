@@ -8,6 +8,9 @@
 
 defined('ABSPATH') || exit;
 
+// Include checkout debug functionality
+require_once plugin_dir_path(__FILE__) . 'includes/class-checkout-debug.php';
+
 // Initialize plugin after WordPress and all plugins are loaded
 add_action('plugins_loaded', function() {
     // Check if WooCommerce is active
@@ -167,6 +170,10 @@ add_action('plugins_loaded', function() {
             // Frontend AJAX handlers
             add_action('wp_ajax_mitnafun_get_product_data', [$this, 'ajax_get_product_data']);
             add_action('wp_ajax_nopriv_mitnafun_get_product_data', [$this, 'ajax_get_product_data']);
+            
+            // Checkout debug AJAX handler
+            add_action('wp_ajax_mitnafun_get_product_stock', [$this, 'ajax_get_product_stock']);
+            add_action('wp_ajax_nopriv_mitnafun_get_product_stock', [$this, 'ajax_get_product_stock']);
             
             // Register shortcode
             add_shortcode('mitnafun_product_availability', [$this, 'render_product_availability']);
@@ -1077,6 +1084,73 @@ add_action('plugins_loaded', function() {
                 'message' => __('Initial stock updated successfully', 'mitnafun-order-admin'),
                 'initial_stock' => $initial_stock
             ]);
+        }
+        
+        /**
+         * AJAX handler to get detailed stock information for a product
+         * Used by the checkout debug script
+         */
+        public function ajax_get_product_stock() {
+            check_ajax_referer('mitnafun_checkout_nonce', 'nonce');
+            
+            $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+            
+            if (!$product_id) {
+                wp_send_json_error(['message' => 'Invalid product ID']);
+                return;
+            }
+            
+            $product = wc_get_product($product_id);
+            
+            if (!$product) {
+                wp_send_json_error(['message' => 'Product not found']);
+                return;
+            }
+            
+            // Get stock information
+            $initial_stock = get_post_meta($product_id, '_initial_stock', true);
+            $wc_stock = $product->get_stock_quantity();
+            $backorders_allowed = $product->backorders_allowed();
+            $stock_status = $product->get_stock_status();
+            
+            // Get held stock (in cart but not yet purchased)
+            $held_stock = 0;
+            
+            // Check if this is a variable product
+            $variation_data = null;
+            if ($product->is_type('variable')) {
+                $variations = $product->get_available_variations();
+                $variation_data = [];
+                
+                foreach ($variations as $variation) {
+                    $variation_obj = wc_get_product($variation['variation_id']);
+                    if ($variation_obj) {
+                        $variation_data[] = [
+                            'id' => $variation['variation_id'],
+                            'attributes' => $variation['attributes'],
+                            'initial_stock' => get_post_meta($variation['variation_id'], '_initial_stock', true),
+                            'wc_stock' => $variation_obj->get_stock_quantity(),
+                            'backorders_allowed' => $variation_obj->backorders_allowed(),
+                            'stock_status' => $variation_obj->get_stock_status()
+                        ];
+                    }
+                }
+            }
+            
+            // Prepare response
+            $response = [
+                'product_id' => $product_id,
+                'product_name' => $product->get_name(),
+                'product_type' => $product->get_type(),
+                'initial_stock' => $initial_stock !== '' ? (int)$initial_stock : null,
+                'wc_stock' => $wc_stock,
+                'backorders_allowed' => $backorders_allowed,
+                'stock_status' => $stock_status,
+                'held_stock' => $held_stock,
+                'variations' => $variation_data
+            ];
+            
+            wp_send_json_success($response);
         }
         
         /**
