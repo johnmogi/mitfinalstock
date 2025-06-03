@@ -32,6 +32,106 @@ add_action('plugins_loaded', function() {
             return self::$instance;
         }
 
+        /**
+         * Sync WooCommerce stock with total stock for all products
+         */
+        public function ajax_bulk_sync_stock() {
+            check_ajax_referer('mitnafun_admin_nonce', 'nonce');
+            
+            if (!current_user_can('manage_woocommerce')) {
+                wp_send_json_error(['message' => __('Insufficient permissions', 'mitnafun-order-admin')]);
+                return;
+            }
+            
+            $products = wc_get_products([
+                'limit' => -1,
+                'status' => 'publish',
+                'return' => 'ids'
+            ]);
+            
+            $updated = 0;
+            $skipped = 0;
+            
+            foreach ($products as $product_id) {
+                $product = wc_get_product($product_id);
+                
+                // Skip products that don't manage stock
+                if (!$product || !$product->managing_stock()) {
+                    $skipped++;
+                    continue;
+                }
+                
+                // Get the total stock from our custom field
+                $total_stock = get_post_meta($product_id, '_initial_stock', true);
+                
+                // Skip if no total stock is set
+                if ($total_stock === '') {
+                    $skipped++;
+                    continue;
+                }
+                
+                // Update the WooCommerce stock
+                $product->set_stock_quantity($total_stock);
+                $product->save();
+                
+                $updated++;
+            }
+            
+            wp_send_json_success([
+                'message' => sprintf(
+                    __('Updated %d products. Skipped %d products that don\'t manage stock or have no initial stock set.', 'mitnafun-order-admin'),
+                    $updated,
+                    $skipped
+                ),
+                'updated' => $updated,
+                'skipped' => $skipped
+            ]);
+        }
+        
+        /**
+         * Sync WooCommerce stock with total stock for a single product
+         */
+        public function ajax_sync_single_stock() {
+            check_ajax_referer('mitnafun_admin_nonce', 'nonce');
+            
+            if (!current_user_can('manage_woocommerce')) {
+                wp_send_json_error(['message' => __('Insufficient permissions', 'mitnafun-order-admin')]);
+                return;
+            }
+            
+            $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+            
+            if (!$product_id) {
+                wp_send_json_error(['message' => __('Invalid product ID', 'mitnafun-order-admin')]);
+                return;
+            }
+            
+            $product = wc_get_product($product_id);
+            
+            if (!$product) {
+                wp_send_json_error(['message' => __('Product not found', 'mitnafun-order-admin')]);
+                return;
+            }
+            
+            // Get the total stock from our custom field
+            $total_stock = get_post_meta($product_id, '_initial_stock', true);
+            
+            if ($total_stock === '') {
+                wp_send_json_error(['message' => __('No initial stock set for this product', 'mitnafun-order-admin')]);
+                return;
+            }
+            
+            // Update the WooCommerce stock
+            $product->set_stock_quantity($total_stock);
+            $product->save();
+            
+            wp_send_json_success([
+                'message' => __('Stock synchronized successfully', 'mitnafun-order-admin'),
+                'woo_stock' => $total_stock,
+                'in_stock' => $product->is_in_stock()
+            ]);
+        }
+
         public function __construct() {
             // Call init_hooks to ensure all main plugin hooks are registered
             $this->init_hooks();
@@ -45,6 +145,9 @@ add_action('plugins_loaded', function() {
             add_action('wp_ajax_mitnafun_run_restock', [$this, 'ajax_process_ended_rentals']);
             add_action('wp_ajax_mitnafun_manual_restock', [$this, 'manual_restock_product']);
             add_action('wp_ajax_nopriv_mitnafun_get_product_data', [$this, 'ajax_get_product_data']);
+            add_action('wp_ajax_mitnafun_bulk_sync_stock', [$this, 'ajax_bulk_sync_stock']);
+            add_action('wp_ajax_mitnafun_sync_single_stock', [$this, 'ajax_sync_single_stock']);
+            add_action('wp_ajax_mitnafun_sync_stock', [$this, 'ajax_sync_stock']);
             
             // Add test endpoint
             add_action('wp_ajax_mitnafun_test_connection', [$this, 'test_connection']);
@@ -137,28 +240,30 @@ add_action('plugins_loaded', function() {
         }
 
         public function add_admin_menu() {
-        // Debug message to verify function is called
-        error_log('Mitnafun Order Admin: add_admin_menu() called');
-        
-        add_menu_page(
-            'Mitnafun Order Admin',
-            'Mitnafun Orders',
-            'manage_options',
-            'mitnafun-order-admin',
-            [$this, 'admin_page'],
-            'dashicons-calendar-alt'
-        );
-        
-        // Add test page
-        add_submenu_page(
-            'mitnafun-order-admin',
-            'Connection Test',
-            'Connection Test',
-            'manage_options',
-            'mitnafun-test-connection',
-            [$this, 'render_test_page']
-        );
-    }
+            // Debug message to verify function is called
+            error_log('Mitnafun Order Admin: add_admin_menu() called');
+
+            // Add main menu under WooCommerce
+            add_submenu_page(
+                'woocommerce',
+                'Mitnafun Order Management',
+                'Mitnafun Orders',
+                'manage_woocommerce',
+                'mitnafun-order-admin',
+                [$this, 'admin_page'],
+                10
+            );
+
+            // Add test page as a submenu
+            add_submenu_page(
+                'mitnafun-order-admin',
+                'Connection Test',
+                'Connection Test',
+                'manage_woocommerce',
+                'mitnafun-test-connection',
+                [$this, 'render_test_page']
+            );
+        }
 
         /**
          * Initialize initial stock values for all products
@@ -243,9 +348,79 @@ add_action('plugins_loaded', function() {
         }
         
         public function enqueue_admin_scripts($hook) {
-            if ($hook !== 'toplevel_page_mitnafun-order-admin') return;
+            // Check if we're on our plugin's admin page
+            $screen = get_current_screen();
+            if ($screen->id !== 'woocommerce_page_mitnafun-order-admin') {
+                return;
+            }
             
-            // FIXED: Force cache busting with timestamp
+            // Enqueue products script
+            wp_enqueue_script(
+                'mitnafun-products',
+                plugin_dir_url(__FILE__) . 'js/products.js',
+                ['jquery'],
+                filemtime(plugin_dir_path(__FILE__) . 'js/products.js'),
+                true
+            );
+            
+            // Enqueue stock management script and styles
+            wp_enqueue_script(
+                'mitnafun-stock-management',
+                plugin_dir_url(__FILE__) . 'js/stock-management.js',
+                ['jquery'],
+                filemtime(plugin_dir_path(__FILE__) . 'js/stock-management.js'),
+                true
+            );
+            
+            // Enqueue stock sync script
+            wp_enqueue_script(
+                'mitnafun-stock-sync',
+                plugin_dir_url(__FILE__) . 'js/stock-sync.js',
+                ['jquery'],
+                filemtime(plugin_dir_path(__FILE__) . 'js/stock-sync.js'),
+                true
+            );
+            
+            // Localize script with AJAX URL and nonce
+            $localize_data = [
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('mitnafun_admin_nonce'),
+                'i18n' => [
+                    'confirm_sync' => __('Are you sure you want to sync all product stocks?', 'mitnafun-order-admin'),
+                    'syncing' => __('Syncing...', 'mitnafun-order-admin'),
+                    'sync_complete' => __('Sync complete!', 'mitnafun-order-admin'),
+                    'error' => __('Error:', 'mitnafun-order-admin'),
+                ]
+            ];
+            
+            wp_localize_script('mitnafun-stock-sync', 'mitnafunAdmin', $localize_data);
+            
+            // Enqueue stock management styles
+            wp_enqueue_style(
+                'mitnafun-stock-management',
+                plugin_dir_url(__FILE__) . 'css/stock-management.css',
+                [],
+                filemtime(plugin_dir_path(__FILE__) . 'css/stock-management.css')
+            );
+            
+            // Localize script with translations
+            $localize_data = [
+                'nonce' => wp_create_nonce('mitnafun_admin_nonce'),
+                'updated_products' => __('Updated Products', 'mitnafun-order-admin'),
+                'skipped_products' => __('Skipped Products', 'mitnafun-order-admin'),
+                'stock_updated_from' => __('Stock updated from', 'mitnafun-order-admin'),
+                'error_occurred' => __('An error occurred', 'mitnafun-order-admin'),
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'i18n' => [
+                    'confirm_sync' => __('Are you sure you want to sync all product stocks?', 'mitnafun-order-admin'),
+                    'syncing' => __('Syncing...', 'mitnafun-order-admin'),
+                    'sync_complete' => __('Sync complete!', 'mitnafun-order-admin'),
+                    'error' => __('Error:', 'mitnafun-order-admin'),
+                ]
+            ];
+            
+            wp_localize_script('mitnafun-products', 'mitnafun_admin_vars', $localize_data);
+            wp_localize_script('mitnafun-stock-management', 'mitnafun_admin_vars', $localize_data);    // FIXED: Force cache busting with timestamp
             // Timestamp to prevent caching
             $ts = time();
             
@@ -529,8 +704,7 @@ add_action('plugins_loaded', function() {
                     LEFT JOIN gjc_woocommerce_order_items oi ON oim2.order_item_id = oi.order_item_id
                     LEFT JOIN gjc_wc_orders o ON oi.order_id = o.id
                     LEFT JOIN gjc_woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id AND oim.meta_key = 'Rental Dates'
-                    WHERE p.post_type = 'product'
-                    AND o.status NOT IN ('trash', 'auto-draft')
+                    WHERE p.post_type = 'product' AND p.post_status = 'publish'
                     GROUP BY p.ID, p.post_title
                     ORDER BY total_rentals DESC
                     LIMIT 100";
@@ -1423,6 +1597,7 @@ add_action('plugins_loaded', function() {
                                     <button type="button" id="mitnafun-stock-filter-reset" class="button"><?php _e('Reset', 'mitnafun-order-admin'); ?></button>
                                     <button type="button" id="mitnafun-run-restock" class="button button-secondary"><?php _e('Run Auto-Restock Now', 'mitnafun-order-admin'); ?></button>
                                     <button type="button" id="mitnafun-init-stock" class="button button-secondary"><?php _e('Initialize Stock Values', 'mitnafun-order-admin'); ?></button>
+                                    <button type="button" id="mitnafun-sync-to-woo" class="button button-secondary"><?php _e('Sync Total → WooCommerce', 'mitnafun-order-admin'); ?></button>
                                 </div>
                             </form>
                         </div>

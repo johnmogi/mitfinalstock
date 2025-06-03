@@ -704,6 +704,40 @@ jQuery(document).ready(function($) {
                         }
                     });
                     
+                    // Handle sync from total stock to WooCommerce stock button click
+                    $('#mitnafun-sync-to-woo').on('click', function() {
+                        if (confirm('Are you sure you want to synchronize total stock to WooCommerce? This will update WooCommerce stock to match total stock for all products.')) {
+                            const $button = $(this);
+                            const originalText = $button.text();
+                            
+                            $button.prop('disabled', true).text('Syncing...');
+                            
+                            $.ajax({
+                                url: mitnafunAdmin.ajaxUrl,
+                                type: 'POST',
+                                data: {
+                                    action: 'mitnafun_bulk_sync_stock',
+                                    nonce: mitnafunAdmin.nonce
+                                },
+                                success: function(response) {
+                                    if (response.success) {
+                                        showNotice('success', response.data.message);
+                                        // Reload the stock data
+                                        loadStockData();
+                                    } else {
+                                        showNotice('error', response.data.message || 'Failed to synchronize stock values');
+                                    }
+                                },
+                                error: function() {
+                                    showNotice('error', 'Error synchronizing stock values');
+                                },
+                                complete: function() {
+                                    $button.prop('disabled', false).text(originalText);
+                                }
+                            });
+                        }
+                    });
+                    
                     // Check for init_stock parameter in URL
                     const urlParams = new URLSearchParams(window.location.search);
                     if (urlParams.get('init_stock') === '1') {
