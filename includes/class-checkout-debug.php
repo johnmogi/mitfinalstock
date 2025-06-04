@@ -39,7 +39,7 @@ class Mitnafun_Checkout_Debug {
         // Localize the script with data
         wp_localize_script(
             'mitnafun-checkout-debug',
-            'mitnafunCheckout',
+            'mitnafun_checkout_debug',
             array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('mitnafun_checkout_nonce'),
@@ -56,7 +56,7 @@ class Mitnafun_Checkout_Debug {
             wp_enqueue_script('mitnafun-checkout-debug');
             
             // Localize script with data
-            wp_localize_script('mitnafun-checkout-debug', 'mitnafunCheckout', array(
+            wp_localize_script('mitnafun-checkout-debug', 'mitnafun_checkout_debug', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('mitnafun_checkout_nonce'),
                 'is_checkout' => true

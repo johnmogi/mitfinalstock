@@ -175,6 +175,10 @@ add_action('plugins_loaded', function() {
             add_action('wp_ajax_mitnafun_get_product_stock', [$this, 'ajax_get_product_stock']);
             add_action('wp_ajax_nopriv_mitnafun_get_product_stock', [$this, 'ajax_get_product_stock']);
             
+            // Frontend AJAX handlers for the debug panel
+            add_action('wp_ajax_mitnafun_get_product_details', array($this, 'ajax_get_product_details'));
+            add_action('wp_ajax_nopriv_mitnafun_get_product_details', array($this, 'ajax_get_product_details'));
+            
             // Register shortcode
             add_shortcode('mitnafun_product_availability', [$this, 'render_product_availability']);
             
