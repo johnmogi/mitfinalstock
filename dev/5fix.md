@@ -1,6 +1,49 @@
 # Stock Display Solution Documentation
 
-## Overview
+## Admin Menu Shortcut
+
+### Problem
+Needed a quick access link to the Mitnafun Orders admin page from the WordPress admin sidebar.
+
+### Solution
+Added a top-level admin menu item that appears right after the Dashboard:
+
+```php
+// Add Mitnafun Orders to admin menu
+add_action('admin_menu', 'add_mitnafun_admin_menu_link');
+function add_mitnafun_admin_menu_link() {
+    if (current_user_can('manage_woocommerce')) {
+        add_menu_page(
+            'Mitnafun Orders',
+            'Mitnafun Orders',
+            'manage_woocommerce',
+            'admin.php?page=mitnafun-order-admin',
+            '',
+            'dart',
+            2
+        );
+    }
+}
+```
+
+### Key Features
+- Appears as a top-level menu item in the WordPress admin sidebar
+- Positioned right after the Dashboard (position 2)
+- Uses the cart icon for visual consistency with WooCommerce
+- Only visible to users with 'manage_woocommerce' capability
+- Directly links to the existing order admin page
+
+### Implementation Notes
+- Added to theme's functions.php file
+- No database changes required
+- Automatically appears for all users with appropriate permissions
+- Maintains existing functionality while adding quick access
+
+---
+
+## Stock Display Solution
+
+## Stock Display Overview
 Implemented a solution to display stock information for rental products, showing both initial stock and current availability. The solution includes a debug panel that appears on the frontend to help with testing and verification.
 
 ## Key Components

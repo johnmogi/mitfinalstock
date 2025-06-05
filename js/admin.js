@@ -1121,194 +1121,57 @@ function getOrderStatusColor(status) {
 }
 
 function loadOrdersForCalendar(info, successCallback, failureCallback) {
-    // Create sample events in case the AJAX request fails
-    const createFallbackEvents = function() {
-        console.log('Creating fallback events with your sample order data');
-        const events = [];
-        
-        // Internal function for status colors
-        const getFallbackStatusColor = function(status) {
-            const colors = {
-                'processing': '#2196F3', // Changed to light blue
-                'completed': '#4CAF50',
-                'rental-confirmed': '#2196F3', // Changed to light blue
-                'rental-completed': '#4CAF50',
-                'rental-cancelled': '#F44336',
-                'on-hold': '#FFC107',
-                'cancelled': '#F44336'
-            };
-            
-            return colors[status] || '#9C27B0'; // Default purple for unknown status
-        };
-        
-        // Sample data from your three orders
-        const sampleOrders = [
-            {
-                order_id: '896',
-                product_name: 'אנה ואלזה 4X3.5',
-                rental_dates: '30.04.2025 - 01.05.2025',
-                status: 'processing',
-                customer_email: 'angur3u@gmail.com'
-            },
-            {
-                order_id: '900',
-                product_name: 'גנרטור 7500 - GX',
-                rental_dates: '02.05.2025 - 05.05.2025',
-                status: 'completed',
-                customer_email: 'h14i@johnmogi.com'
-            },
-            {
-                order_id: '897',
-                product_name: 'אנה ואלזה 4X3.5',
-                rental_dates: '06.06.2025 - 09.06.2025',
-                status: 'rental-confirmed',
-                customer_email: 'hi@johnmogi.com'
-            }
-        ];
-        
-        // Process each sample order into a calendar event
-        sampleOrders.forEach(function(order) {
-            if (!order.rental_dates) return;
-            
-            // Parse the date range (format: DD.MM.YYYY - DD.MM.YYYY)
-            const dates = order.rental_dates.split(' - ');
-            if (dates.length === 2) {
-                // Convert to ISO format (YYYY-MM-DD)
-                const startDate = convertToISODate(dates[0]);
-                const endDate = convertToISODate(dates[1], true);
-                
-                if (startDate && endDate) {
-                    // Create an event for this order
-                    const eventId = 'sample_order_' + order.order_id;
-                    events.push({
-                        id: eventId,
-                        title: order.product_name || ('Order #' + order.order_id),
-                        start: startDate,
-                        end: endDate,
-                        backgroundColor: getFallbackStatusColor(order.status),
-                        borderColor: getFallbackStatusColor(order.status),
-                        extendedProps: {
-                            order_id: order.order_id,
-                            client_email: order.customer_email || 'Guest',
-                            status: order.status
-                        },
-                        allDay: true
-                    });
-                }
-            }
-        });
-        
-        console.log('Created', events.length, 'fallback events');
-        return events;
-    };
-
+    console.log('Loading orders for calendar, date range:', info.startStr, 'to', info.endStr);
+    
     // Fetch orders from the server
     jQuery.ajax({
         url: mitnafunAdmin.ajaxUrl,
         method: 'POST',
         data: {
-            action: 'mitnafun_load_orders', // Updated to match PHP action registration
+            action: 'mitnafun_load_orders',
             nonce: mitnafunAdmin.nonce,
-            product_id: '',  // Match parameter names expected by PHP
-            client_id: '',   // Match parameter names expected by PHP
-            status: ''    // This one matches already
+            start: info.startStr,
+            end: info.endStr,
+            product_id: '',
+            client_id: '',
+            status: ''
         },
         success: function(response) {
-            console.log('Order data loaded for calendar:', response);
+            console.log('Order data received:', response);
             
             if (response.success && response.data && response.data.orders) {
                 const orders = response.data.orders;
                 const events = [];
                 
-                // Process each order into a calendar event
                 orders.forEach(function(order) {
-                    // Skip orders without rental dates
                     if (!order.rental_dates || order.rental_dates === 'N/A') {
                         console.log('Skipping order without rental dates:', order.order_id);
                         return;
                     }
                     
-                    // Parse the rental dates (format: DD.MM.YYYY - DD.MM.YYYY)
-                    let dateRange = order.rental_dates;
-                    
-                    // Handle different date formats
-                    if (dateRange.includes(' - ')) {
-                        // Format: DD.MM.YYYY - DD.MM.YYYY or DD/MM/YYYY - DD/MM/YYYY
-                        const dates = dateRange.split(' - ');
-                        if (dates.length === 2) {
-                            // Convert to ISO format (YYYY-MM-DD)
-                            const startDate = convertToISODate(dates[0]);
-                            const endDate = convertToISODate(dates[1], true);
-                            
-                            if (startDate && endDate) {
-                                // Create an event for this order
-                                const eventId = 'order_' + order.order_id;
-                                events.push({
-                                    id: eventId,
-                                    title: order.product_name || ('Order #' + order.order_id),
-                                    start: startDate,
-                                    end: endDate,
-                                    backgroundColor: getOrderStatusColor(order.status),
-                                    borderColor: getOrderStatusColor(order.status),
-                                    extendedProps: {
-                                        order_id: order.order_id,
-                                        product_id: order.product_id,
-                                        client_email: order.customer_email || order.billing_email || 'Guest',
-                                        status: order.status
-                                    },
-                                    allDay: true
-                                });
-                                
-                                console.log('Created event from order:', order.order_id, 'Date range:', startDate, '-', endDate);
-                            } else {
-                                console.error('Failed to parse dates:', dates[0], dates[1]);
+                    try {
+                        // Handle different date formats
+                        let startDate, endDate;
+                        
+                        if (order.rental_dates.includes(' - ')) {
+                            // Format: DD.MM.YYYY - DD.MM.YYYY
+                            const dates = order.rental_dates.split(' - ');
+                            if (dates.length === 2) {
+                                startDate = convertToISODate(dates[0].trim());
+                                endDate = convertToISODate(dates[1].trim(), true);
                             }
+                        } else if (order.start_date && order.end_date) {
+                            // Use direct date fields if available
+                            startDate = order.start_date;
+                            endDate = order.end_date;
                         }
-                    } else if (dateRange.includes(',')) {
-                        // Format: DD.MM.YYYY, DD.MM.YYYY (multiple individual dates)
-                        const dates = dateRange.split(',');
-                        dates.forEach(function(date, index) {
-                            const isoDate = convertToISODate(date.trim());
-                            if (isoDate) {
-                                // For single dates, create a one-day event
-                                const nextDay = new Date(isoDate);
-                                nextDay.setDate(nextDay.getDate() + 1);
-                                const endDate = nextDay.toISOString().split('T')[0];
-                                
-                                const eventId = 'order_' + order.order_id + '_' + index;
-                                events.push({
-                                    id: eventId,
-                                    title: order.product_name || ('Order #' + order.order_id),
-                                    start: isoDate,
-                                    end: endDate,
-                                    backgroundColor: getOrderStatusColor(order.status),
-                                    borderColor: getOrderStatusColor(order.status),
-                                    extendedProps: {
-                                        order_id: order.order_id,
-                                        product_id: order.product_id,
-                                        client_email: order.customer_email || order.billing_email || 'Guest',
-                                        status: order.status
-                                    },
-                                    allDay: true
-                                });
-                                
-                                console.log('Created event from order with single date:', order.order_id, 'Date:', isoDate);
-                            }
-                        });
-                    } else {
-                        // Try to parse as a single date
-                        const isoDate = convertToISODate(dateRange);
-                        if (isoDate) {
-                            // For single dates, create a one-day event
-                            const nextDay = new Date(isoDate);
-                            nextDay.setDate(nextDay.getDate() + 1);
-                            const endDate = nextDay.toISOString().split('T')[0];
-                            
+                        
+                        if (startDate && endDate) {
                             const eventId = 'order_' + order.order_id;
                             events.push({
                                 id: eventId,
                                 title: order.product_name || ('Order #' + order.order_id),
-                                start: isoDate,
+                                start: startDate,
                                 end: endDate,
                                 backgroundColor: getOrderStatusColor(order.status),
                                 borderColor: getOrderStatusColor(order.status),
@@ -1320,29 +1183,32 @@ function loadOrdersForCalendar(info, successCallback, failureCallback) {
                                 },
                                 allDay: true
                             });
-                            
-                            console.log('Created event from order with single date:', order.order_id, 'Date:', isoDate);
-                        } else {
-                            console.error('Failed to parse date format:', dateRange);
+                            console.log('Added event:', eventId, startDate, 'to', endDate);
                         }
+                    } catch (error) {
+                        console.error('Error processing order:', order.order_id, error);
                     }
                 });
                 
-                // Return the processed events
-                console.log('Created', events.length, 'events from', orders.length, 'orders');
+                console.log('Successfully processed', events.length, 'events');
                 window.mitnafunCache.orderData = orders;
                 successCallback(events);
+                
+                // Force calendar to update
+                if (window.calendar) {
+                    setTimeout(() => {
+                        window.calendar.refetchEvents();
+                        console.log('Calendar events refreshed');
+                    }, 100);
+                }
             } else {
-                console.log('No orders found or invalid response format - using fallback events');
-                // Use fallback events if no orders found
-                successCallback(createFallbackEvents());
+                console.error('Invalid response format or no orders found');
+                if (failureCallback) failureCallback('No orders found');
             }
         },
         error: function(xhr, status, error) {
-            console.error('AJAX error loading orders:', error);
-            // Use fallback events on AJAX error
-            console.log('Using fallback events due to AJAX error');
-            successCallback(createFallbackEvents());
+            console.error('AJAX error loading orders:', status, error);
+            if (failureCallback) failureCallback(error);
         }
     });
 }

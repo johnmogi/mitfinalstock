@@ -1146,12 +1146,14 @@ add_action('plugins_loaded', function() {
                 'product_id' => $product_id,
                 'product_name' => $product->get_name(),
                 'product_type' => $product->get_type(),
-                'initial_stock' => $initial_stock !== '' ? (int)$initial_stock : null,
+                'initial_stock' => $initial_stock !== '' ? (int)$initial_stock : (int)$wc_stock, // Fallback to WC stock if initial not set
+                'stock_quantity' => $wc_stock !== null ? (int)$wc_stock : 0, // Current available stock
                 'wc_stock' => $wc_stock,
                 'backorders_allowed' => $backorders_allowed,
                 'stock_status' => $stock_status,
                 'held_stock' => $held_stock,
-                'variations' => $variation_data
+                'variations' => $variation_data,
+                'is_low_stock' => $wc_stock !== null && $wc_stock <= 2 // Add low stock flag
             ];
             
             wp_send_json_success($response);

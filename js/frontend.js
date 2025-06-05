@@ -114,31 +114,61 @@ jQuery(document).ready(function($) {
         // Clear any existing content
         $container.empty();
         
+        // Get the initial stock (total available)
+        const initialStock = productData.initial_stock || 0;
+        const currentStock = parseInt(productData.stock_quantity) || 0;
+        const isLowStock = currentStock <= 2;
+        
         // Create the availability HTML
         let html = `
             <div class="mitnafun-availability-info">
                 <div class="mitnafun-availability-status">
                     <span class="mitnafun-availability-label">Status:</span>
-                    <span class="mitnafun-availability-value ${productData.stock_status}">
-                        ${formatStockStatus(productData.stock_status)}
+                    <span class="mitnafun-availability-value ${isLowStock ? 'low-stock' : 'in-stock'}">
+                        ${isLowStock ? 'Low Stock' : 'In Stock'}
                     </span>
                 </div>
-                ${productData.stock_quantity ? `
-                    <div class="mitnafun-availability-quantity">
-                        <span class="mitnafun-availability-label">In Stock:</span>
-                        <span class="mitnafun-availability-value">${productData.stock_quantity}</span>
-                    </div>
-                ` : ''}
+                <div class="mitnafun-availability-quantity">
+                    <span class="mitnafun-availability-label">Available:</span>
+                    <span class="mitnafun-availability-value ${isLowStock ? 'low-stock' : ''}">
+                        ${currentStock} of ${initialStock}
+                    </span>
+                </div>
             </div>
         `;
         
         // Add rental dates if available
         if (productData.rental_dates && productData.rental_dates.length > 0) {
+            // Sort dates to find first and last
+            const sortedDates = [...productData.rental_dates].sort((a, b) => 
+                new Date(a.start_date) - new Date(b.start_date)
+            );
+            
+            const firstRental = sortedDates[0];
+            const lastRental = sortedDates[sortedDates.length - 1];
+            
             html += `
                 <div class="mitnafun-rental-dates">
+                    <div class="mitnafun-rental-dates-title">Rental Period:</div>
+                    <div class="mitnafun-rental-dates-list">
+                        <div class="mitnafun-rental-date">
+                            <span class="mitnafun-availability-label">First Day:</span>
+                            <span class="mitnafun-rental-date-range">
+                                ${formatDate(firstRental.start_date)}
+                            </span>
+                        </div>
+                        <div class="mitnafun-rental-date">
+                            <span class="mitnafun-availability-label">Last Day:</span>
+                            <span class="mitnafun-rental-date-range">
+                                ${formatDate(lastRental.end_date)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mitnafun-upcoming-rentals">
                     <div class="mitnafun-rental-dates-title">Upcoming Rentals:</div>
                     <div class="mitnafun-rental-dates-list">
-                        ${productData.rental_dates.map(date => `
+                        ${sortedDates.map(date => `
                             <div class="mitnafun-rental-date">
                                 <span class="mitnafun-rental-date-range">
                                     ${formatDate(date.start_date)} - ${formatDate(date.end_date)}
