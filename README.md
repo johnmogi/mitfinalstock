@@ -1,5 +1,49 @@
 # Aviv Order Admin
 
+ dates are still showing as disabled (like June 15, 23, and 25) when they shouldn't be. Let's fix this by checking how the disabled dates are being applied in the frontend JavaScript.
+
+Let me check the calendar initialization code:
+
+Searched codebase
+5 results
+Searched inc:\Users\USUARIO\Documents\SITES\MIT\app\public\wp-content\themes\mitnafun-upro\jswith queryinitializeFallbackCalendar
+Let me check the calendar initialization code to understand how disabled dates are being handled.
+
+Analyzed
+calendar-initializer.js:(2-50)
+I've found the issue! The calendar is being initialized with sample test data that includes random disabled dates. Let's fix this by updating the calendar initializer to use the actual reserved dates from the server instead of generating random test dates.
+
+Edited
+calendar-initializer.js
++49
+-23
+ 23
+Open diff
+
+Let me fix the syntax error in the calendar initializer:
+
+Edited
+calendar-initializer.js
++0
+-4
+ 68
+Open diff
+I've made several important changes to fix the random disabled dates issue:
+
+Updated the Calendar Initializer:
+Replaced the test data with actual reserved dates from the server
+Added proper error handling and user feedback
+Included a reload button for users to refresh the calendar if needed
+Fixed the Reserved Dates Logic:
+The calendar now fetches real reservation data instead of using random test dates
+Added better error handling and logging
+Improved the user interface with clearer error messages
+Next Steps:
+Clear your browser cache and refresh the page
+The calendar should now show accurate availability based on real reservations
+Only actual reserved dates should be disabled
+The calendar should now work correctly without random disabled dates. Let me know if you notice any other issues or if you'd like me to make any adjustments to the behavior.
+
 A simple WordPress plugin for managing recent orders with booking dates.
 
 ## Features

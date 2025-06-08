@@ -136,6 +136,12 @@ add_action('plugins_loaded', function() {
         }
 
         public function __construct() {
+            // Track active rentals when order status changes
+            add_action('woocommerce_order_status_changed', array($this, 'update_active_rentals'), 10, 4);
+            
+            // Add stock debug info to product page
+            add_action('woocommerce_before_add_to_cart_form', array($this, 'add_stock_debug_info'));
+            
             // Call init_hooks to ensure all main plugin hooks are registered
             $this->init_hooks();
             
@@ -186,6 +192,154 @@ add_action('plugins_loaded', function() {
             add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_scripts']);
         }
 
+        /**
+     * Handle order status changes
+     */
+    public function handle_order_status_change($order_id, $old_status, $new_status) {
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+        
+        // If order is being cancelled or failed, restore stock
+        if (in_array($new_status, ['cancelled', 'failed', 'refunded'])) {
+            $this->restore_order_stock($order);
+        } 
+        // If order is being processed or completed, reduce stock
+        elseif (in_array($new_status, ['processing', 'completed'])) {
+            $this->reduce_order_stock($order);
+        }
+    }
+    
+    /**
+     * Handle new order
+     */
+    public function handle_new_order($order_id) {
+        $order = wc_get_order($order_id);
+        if ($order) {
+            $this->reduce_order_stock($order);
+        }
+    }
+    
+    /**
+     * Handle order cancellation
+     */
+    public function handle_order_cancelled($order_id) {
+        $order = wc_get_order($order_id);
+        if ($order) {
+            $this->restore_order_stock($order);
+        }
+    }
+    
+    /**
+     * Handle order failure
+     */
+    public function handle_order_failed($order_id) {
+        $order = wc_get_order($order_id);
+        if ($order) {
+            $this->restore_order_stock($order);
+        }
+    }
+    
+    /**
+     * Handle order refund
+     */
+    public function handle_order_refunded($order_id) {
+        $order = wc_get_order($order_id);
+        if ($order) {
+            $this->restore_order_stock($order);
+        }
+    }
+    
+    /**
+     * Reduce stock for all items in an order
+     */
+    private function reduce_order_stock($order) {
+        if (get_post_meta($order->get_id(), '_order_stock_reduced', true)) {
+            return; // Stock already reduced
+        }
+        
+        foreach ($order->get_items() as $item) {
+            if ($item->is_type('line_item') && ($product = $item->get_product())) {
+                if ($product->managing_stock()) {
+                    $qty = $item->get_quantity();
+                    $new_stock = wc_update_product_stock($product, $qty, 'decrease');
+                    
+                    // Update the stock history
+                    $this->update_stock_history($product->get_id(), -$qty, 'order_placed', $order->get_id());
+                    
+                    // Log the stock change
+                    error_log(sprintf(
+                        'Stock reduced: Product ID %d, Qty: %d, New Stock: %d, Order: #%d',
+                        $product->get_id(),
+                        $qty,
+                        $new_stock,
+                        $order->get_id()
+                    ));
+                }
+            }
+        }
+        
+        update_post_meta($order->get_id(), '_order_stock_reduced', 'yes');
+    }
+    
+    /**
+     * Restore stock for all items in an order
+     */
+    private function restore_order_stock($order) {
+        if (!get_post_meta($order->get_id(), '_order_stock_reduced', true)) {
+            return; // Stock was not reduced
+        }
+        
+        foreach ($order->get_items() as $item) {
+            if ($item->is_type('line_item') && ($product = $item->get_product())) {
+                if ($product->managing_stock()) {
+                    $qty = $item->get_quantity();
+                    $new_stock = wc_update_product_stock($product, $qty, 'increase');
+                    
+                    // Update the stock history
+                    $this->update_stock_history($product->get_id(), $qty, 'order_cancelled', $order->get_id());
+                    
+                    // Log the stock change
+                    error_log(sprintf(
+                        'Stock restored: Product ID %d, Qty: %d, New Stock: %d, Order: #%d',
+                        $product->get_id(),
+                        $qty,
+                        $new_stock,
+                        $order->get_id()
+                    ));
+                }
+            }
+        }
+        
+        delete_post_meta($order->get_id(), '_order_stock_reduced');
+    }
+    
+    /**
+     * Update stock history for a product
+     */
+    private function update_stock_history($product_id, $change, $action, $order_id = 0) {
+        $history = get_post_meta($product_id, '_stock_history', true);
+        if (!is_array($history)) {
+            $history = array();
+        }
+        
+        $history[] = array(
+            'timestamp' => current_time('mysql'),
+            'change' => $change,
+            'action' => $action,
+            'order_id' => $order_id,
+            'user_id' => get_current_user_id()
+        );
+        
+        // Keep only the last 100 entries
+        if (count($history) > 100) {
+            $history = array_slice($history, -100);
+        }
+        
+        update_post_meta($product_id, '_stock_history', $history);
+    }
+    
         private function init_hooks() {
             register_activation_hook(__FILE__, [$this, 'activate']);
             add_action('admin_menu', [$this, 'add_admin_menu']);
@@ -205,6 +359,13 @@ add_action('plugins_loaded', function() {
             if (!wp_next_scheduled('mitnafun_daily_restock')) {
                 wp_schedule_event(time(), 'daily', 'mitnafun_daily_restock');
             }
+            
+            // Add order status change hooks
+            add_action('woocommerce_order_status_changed', [$this, 'handle_order_status_change'], 10, 3);
+            add_action('woocommerce_checkout_order_processed', [$this, 'handle_new_order'], 10, 1);
+            add_action('woocommerce_order_status_cancelled', [$this, 'handle_order_cancelled'], 10, 1);
+            add_action('woocommerce_order_status_failed', [$this, 'handle_order_failed'], 10, 1);
+            add_action('woocommerce_order_status_refunded', [$this, 'handle_order_refunded'], 10, 1);
         }
 
         public function activate() {
@@ -1776,7 +1937,12 @@ add_action('plugins_loaded', function() {
     }
 
     // Initialize the plugin
-    $mitnafun_order_admin = MitnafunOrderAdmin::get_instance();
+    add_action('plugins_loaded', function() {
+        $mitnafun_order_admin = MitnafunOrderAdmin::get_instance();
+        
+        // Add stock debug info to product page for admins
+        add_action('woocommerce_before_add_to_cart_form', array($mitnafun_order_admin, 'add_stock_debug_info'));
+    }, 20);
     
     // Add admin notice if initialization is needed
     add_action('admin_notices', function() use ($mitnafun_order_admin) {

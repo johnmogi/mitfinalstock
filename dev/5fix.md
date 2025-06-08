@@ -1,43 +1,63 @@
-# Stock Display Solution Documentation
+# Stock Display Implementation Documentation
 
-## Admin Menu Shortcut
+## Simplified Stock Display Implementation
 
-### Problem
-Needed a quick access link to the Mitnafun Orders admin page from the WordPress admin sidebar.
+### Overview
+Implemented a clean, minimal stock display showing only the total inventory count on product pages. This replaces the previous stock manager container with a simpler, more focused display.
 
-### Solution
-Added a top-level admin menu item that appears right after the Dashboard:
+### Implementation Details
 
+#### Location
+File: `wp-content/themes/mitnafun-upro/woocommerce/content-single-product.php`
+
+#### Code Implementation
 ```php
-// Add Mitnafun Orders to admin menu
-add_action('admin_menu', 'add_mitnafun_admin_menu_link');
-function add_mitnafun_admin_menu_link() {
-    if (current_user_can('manage_woocommerce')) {
-        add_menu_page(
-            'Mitnafun Orders',
-            'Mitnafun Orders',
-            'manage_woocommerce',
-            'admin.php?page=mitnafun-order-admin',
-            '',
-            'dart',
-            2
-        );
-    }
-}
+<?php if ($product->get_manage_stock()) : 
+    $stock_quantity = $product->get_stock_quantity();
+    $stock_status = $product->get_stock_status();
+    $initial_stock = get_post_meta($product->get_id(), '_initial_stock', true);
+    $initial_stock = !empty($initial_stock) ? $initial_stock : $stock_quantity;
+    ?>
+    <li class="stock-availability" style="margin-top: 10px;">
+        <div style="font-size: 1em; color: #000; font-weight: bold;">
+            <div>סה"כ מלאי: <?php echo $initial_stock; ?> יחידות</div>
+        </div>
+    </li>
+<?php endif; ?>
 ```
 
-### Key Features
-- Appears as a top-level menu item in the WordPress admin sidebar
-- Positioned right after the Dashboard (position 2)
-- Uses the cart icon for visual consistency with WooCommerce
-- Only visible to users with 'manage_woocommerce' capability
-- Directly links to the existing order admin page
+#### Key Components
+1. **Stock Data Retrieval**
+   - Gets current stock quantity using WooCommerce's `get_stock_quantity()`
+   - Retrieves initial stock value from post meta field '_initial_stock'
+   - Falls back to current stock if initial stock is not set
 
-### Implementation Notes
-- Added to theme's functions.php file
-- No database changes required
-- Automatically appears for all users with appropriate permissions
-- Maintains existing functionality while adding quick access
+2. **Display Logic**
+   - Only shows for products with stock management enabled
+   - Displays in a simple, bold format for maximum visibility
+   - Uses Hebrew text for consistency with the site's language
+
+3. **Styling**
+   - Clean, minimal design that matches the site's aesthetic
+   - Bold text for better readability
+   - Proper spacing with margin-top for visual separation
+
+### Changes Made
+1. Removed the previous stock manager container by disabling its creation in `stock-manager.js`
+2. Simplified the stock display to show only the total inventory count
+3. Maintained fallback to current stock if initial stock is not available
+
+### Technical Notes
+- The stock value is retrieved directly from WooCommerce's product data
+- The display updates automatically when the page loads
+- No additional JavaScript is required for the basic display
+- The implementation is lightweight and doesn't impact page performance
+
+### Future Considerations
+1. Add caching for stock values if needed for performance
+2. Consider adding a refresh button for manual updates
+3. Potentially add color coding based on stock levels (e.g., red for low stock)
+4. Consider adding a tooltip with more detailed stock information
 
 ---
 
@@ -204,3 +224,48 @@ function handle_stock_data_request() {
       AND oim.meta_value = %d
       AND o.status IN ('wc-processing', 'wc-pending', 'wc-on-hold')
   ", $product_id));
+
+
+  Here's the function that retrieves the initial stock data:
+
+php
+CopyInsert
+/**
+ * Retrieves the initial stock value for a product
+ * 
+ * @param int $product_id The ID of the product
+ * @return int|false The initial stock value or false if not set
+ */
+function get_initial_stock($product_id) {
+    // Get the initial stock from post meta
+    $initial_stock = get_post_meta($product_id, '_initial_stock', true);
+    
+    // If initial stock is not set, get the current stock as fallback
+    if (empty($initial_stock)) {
+        $product = wc_get_product($product_id);
+        if ($product) {
+            $initial_stock = $product->get_stock_quantity();
+        }
+    }
+    
+    // Ensure we return an integer or false
+    return is_numeric($initial_stock) ? (int)$initial_stock : false;
+}
+Usage Example:
+php
+CopyInsert
+$product_id = get_the_ID(); // Or any product ID
+$initial_stock = get_initial_stock($product_id);
+
+if ($initial_stock !== false) {
+    echo "Initial Stock: " . $initial_stock . " units";
+} else {
+    echo "Stock information not available";
+}
+Key Features:
+Retrieves the initial stock value from the '_initial_stock' meta field
+Falls back to the current stock quantity if initial stock is not set
+Returns false if no stock information is available
+Ensures the return value is an integer for consistency
+Includes proper PHPDoc comments for documentation
+This function is used in the product template to display the initial stock value while providing a fallback to current stock if needed.
