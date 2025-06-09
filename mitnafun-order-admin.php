@@ -11,6 +11,9 @@ defined('ABSPATH') || exit;
 // Include checkout debug functionality
 require_once plugin_dir_path(__FILE__) . 'includes/class-checkout-debug.php';
 
+// Include stock debugger functionality
+require_once plugin_dir_path(__FILE__) . 'includes/stock-debugger/loader.php';
+
 // Initialize plugin after WordPress and all plugins are loaded
 add_action('plugins_loaded', function() {
     // Check if WooCommerce is active
