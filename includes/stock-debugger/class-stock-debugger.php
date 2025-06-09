@@ -100,12 +100,23 @@ class Stock_Debugger {
         }
 
         $product_id = $product->get_id();
-        $initial_stock = (int)$product->get_stock_quantity();
         $today = new DateTime();
+        
+        // Get initial stock from custom meta or use current stock if not set
+        $current_stock = (int) $product->get_stock_quantity();
+        $initial_stock = (int) get_post_meta($product_id, '_initial_stock', true);
+        
+        // If initial stock is not set, use current stock as initial
+        if (!$initial_stock) {
+            $initial_stock = $current_stock;
+            update_post_meta($product_id, '_initial_stock', $initial_stock);
+        }
+        
         $debug_info = [
             'product_id' => $product_id,
             'product_name' => $product->get_name(),
             'initial_stock' => $initial_stock,
+            'current_stock' => $current_stock,
             'current_date' => $today->format('Y-m-d H:i:s'),
             'query' => []
         ];
@@ -200,21 +211,60 @@ class Stock_Debugger {
                 
                 $all_reservations[] = $reservation;
                 
-                // Calculate date range and count reservations per date
+                // Debug: Log the current reservation being processed
+                error_log('Processing reservation - Start: ' . $formatted_start . ', End: ' . $formatted_end);
+                
                 try {
+                    // Create DateTime objects
                     $start_date = new DateTime($formatted_start);
                     $end_date = new DateTime($formatted_end);
-                    $end_date->modify('+1 day'); // Include end date in the range
+                    $today = new DateTime('now', new DateTimeZone('Asia/Jerusalem')); // Using Israel timezone
+                    $today->setTime(0, 0, 0); // Reset time to start of day
                     
-                    $interval = new DateInterval('P1D');
-                    $period = new DatePeriod($start_date, $interval, $end_date);
+                    // Debug: Log the dates being compared
+                    error_log('Today: ' . $today->format('Y-m-d H:i:s'));
+                    error_log('Reservation end date: ' . $end_date->format('Y-m-d H:i:s'));
                     
-                    foreach ($period as $date) {
-                        $date_str = $date->format('Y-m-d');
-                        if (!isset($date_counts[$date_str])) {
-                            $date_counts[$date_str] = 0;
+                    // Only process if the reservation ends today or in the future
+                    if ($end_date >= $today) {
+                        $end_date_for_count = clone $end_date;
+                        $end_date_for_count->modify('+1 day'); // Include end date in the range
+                        
+                        $interval = new DateInterval('P1D');
+                        $period = new DatePeriod($start_date, $interval, $end_date_for_count);
+                        
+                        $has_future_dates = false;
+                        $debug_dates = [];
+                        
+                        foreach ($period as $date) {
+                            $date->setTime(0, 0, 0); // Reset time to start of day
+                            $is_future = ($date >= $today);
+                            $debug_dates[] = $date->format('Y-m-d') . ($is_future ? ' (future)' : ' (past)');
+                            
+                            // Only count future or today's dates
+                            if ($is_future) {
+                                $has_future_dates = true;
+                                $date_str = $date->format('Y-m-d');
+                                if (!isset($date_counts[$date_str])) {
+                                    $date_counts[$date_str] = 0;
+                                }
+                                $date_counts[$date_str] += $reservation['quantity'];
+                            }
                         }
-                        $date_counts[$date_str] += $reservation['quantity'];
+                        
+                        // Debug: Log the dates being processed
+                        error_log('Processed dates: ' . implode(', ', $debug_dates));
+                        error_log('Has future dates: ' . ($has_future_dates ? 'yes' : 'no'));
+                        
+                        // Only add to all_reservations if it has future dates
+                        if ($has_future_dates) {
+                            $all_reservations[] = $reservation;
+                            error_log('Added to all_reservations');
+                        } else {
+                            error_log('Skipped - no future dates in this reservation');
+                        }
+                    } else {
+                        error_log('Skipped - reservation ends in the past');
                     }
                 } catch (Exception $e) {
                     error_log('Error processing date range: ' . $e->getMessage());
@@ -239,7 +289,8 @@ class Stock_Debugger {
                 'reserved' => $count,
                 'available' => max(0, $initial_stock - $count),
                 'is_available' => ($initial_stock - $count) > 0,
-                'is_fully_booked' => $count >= $initial_stock
+                'is_fully_booked' => $count >= $initial_stock,
+                'initial_stock' => $initial_stock // Add initial stock to each date for reference
             ];
         }
         
@@ -248,16 +299,17 @@ class Stock_Debugger {
             'product_id' => $product_id,
             'product_name' => $product->get_name(),
             'initial_stock' => $initial_stock,
+            'current_stock' => $current_stock,
             'current_date' => $today->format('Y-m-d H:i:s'),
             'reservations' => $all_reservations,
             'date_availability' => $availability,
             'summary' => [
                 'total_reserved_dates' => count($all_reservations),
-                'fully_booked_dates' => count(array_filter($availability, function($item) {
-                    return $item['is_fully_booked'];
+                'fully_booked_dates' => count(array_filter($availability, function($item) use ($initial_stock) {
+                    return $item['reserved'] >= $initial_stock;
                 })),
-                'available_dates' => count(array_filter($availability, function($item) {
-                    return $item['is_available'];
+                'available_dates' => count(array_filter($availability, function($item) use ($initial_stock) {
+                    return $item['reserved'] < $initial_stock;
                 }))
             ]
         ];
@@ -313,12 +365,20 @@ class Stock_Debugger {
         
         echo '<div class="debug-content">';
         
+        // Get initial stock from custom meta or use current stock if not set
+        $initial_stock = (int) get_post_meta($product_id, '_initial_stock', true);
+        if (!$initial_stock) {
+            $initial_stock = $stock;
+            update_post_meta($product_id, '_initial_stock', $initial_stock);
+        }
+        
         // Basic info section
         echo '<div class="debug-section">';
         echo '<h4>Basic Information</h4>';
         echo '<div class="debug-grid">';
         echo '<div class="debug-item"><span class="label">Product ID:</span> <span class="value">' . esc_html($product_id) . '</span></div>';
-        echo '<div class="debug-item"><span class="label">Stock:</span> <span class="value">' . esc_html($stock) . '</span></div>';
+        echo '<div class="debug-item"><span class="label">Initial Stock:</span> <span class="value">' . esc_html($initial_stock) . ' <small>(from _initial_stock meta)</small></span></div>';
+        echo '<div class="debug-item"><span class="label">Current Stock:</span> <span class="value">' . esc_html($stock) . ' <small>(from WooCommerce)</small></span></div>';
         echo '<div class="debug-item"><span class="label">Manage Stock:</span> <span class="value">' . ($product->get_manage_stock() ? 'Yes' : 'No') . '</span></div>';
         echo '<div class="debug-item"><span class="label">Stock Status:</span> <span class="value">' . esc_html($product->get_stock_status()) . '</span></div>';
         echo '</div>'; // Close debug-grid
@@ -416,6 +476,10 @@ class Stock_Debugger {
     public function get_reserved_dates($product_id) {
         global $wpdb;
         
+        // Get current date in Israel timezone
+        $today = new DateTime('now', new DateTimeZone('Asia/Jerusalem'));
+        $today->setTime(0, 0, 0);
+        
         $results = $wpdb->get_results($wpdb->prepare(
             "SELECT 
                 oi.order_id,
@@ -439,14 +503,30 @@ class Stock_Debugger {
         
         foreach ($results as $row) {
             $dates = explode(' - ', $row->rental_dates);
-            if (count($dates) === 2) {
+            if (count($dates) !== 2) {
+                continue;
+            }
+            
+            try {
+                $start_date = new DateTime(trim($dates[0]));
+                $end_date = new DateTime(trim($dates[1]));
+                
+                // Skip if the reservation has already ended
+                if ($end_date < $today) {
+                    continue;
+                }
+                
                 $reservations[] = [
                     'order_id' => $row->order_id,
                     'status' => $row->status,
-                    'start_date' => trim($dates[0]),
-                    'end_date' => trim($dates[1]),
+                    'start_date' => $start_date->format('d.m.Y'),
+                    'end_date' => $end_date->format('d.m.Y'),
                     'quantity' => (int)$row->quantity
                 ];
+                
+            } catch (Exception $e) {
+                error_log('Error processing reservation dates: ' . $e->getMessage());
+                continue;
             }
         }
         

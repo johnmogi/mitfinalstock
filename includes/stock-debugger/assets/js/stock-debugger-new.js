@@ -196,7 +196,11 @@
                     </div>
                     <div class="debug-item">
                         <span class="label">Initial Stock:</span>
-                        <span class="value">${data.initial_stock}</span>
+                        <span class="value">${data.initial_stock} units</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="label">Current Available:</span>
+                        <span class="value">${data.current_stock} units (of ${data.initial_stock})</span>
                     </div>
                     <div class="debug-item">
                         <span class="label">Current Time:</span>
@@ -231,6 +235,7 @@
                                 <th>Date</th>
                                 <th>Reserved</th>
                                 <th>Available</th>
+                                <th>Remaining</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -239,16 +244,18 @@
         
         // Add rows for each date
         Object.entries(data.date_availability).forEach(([date, info]) => {
+            var remaining = data.initial_stock - info.reserved;
             var statusClass = info.is_fully_booked ? 'status-fully-booked' : 
-                                 info.available < data.initial_stock ? 'status-partial' : 'status-available';
+                                 remaining < data.initial_stock ? 'status-partial' : 'status-available';
             var statusText = info.is_fully_booked ? 'Fully Booked' : 
-                                 info.available < data.initial_stock ? 'Partially Booked' : 'Available';
+                                 remaining < data.initial_stock ? 'Partially Booked' : 'Available';
             
             availabilityHtml += `
                 <tr class="${statusClass}">
                     <td>${formatDisplayDate(date)}</td>
-                    <td>${info.reserved}</td>
-                    <td>${info.available}</td>
+                    <td>${info.reserved} units</td>
+                    <td>${info.available} units</td>
+                    <td>${remaining} of ${data.initial_stock}</td>
                     <td>${statusText}</td>
                 </tr>
             `;
@@ -400,50 +407,73 @@
             console.error('Error setting up event listeners:', error);
         }
     }
-            return;
+    
+    /**
+     * Get stock quantity from the DOM
+     * @return {number} The stock quantity or 0 if not found
+     */
+    function getStockFromDOM() {
+        try {
+            var stockText = $('.stock-availability').text().trim();
+            var stockMatch = stockText && stockText.match(/(\d+)/);
+            var stock = stockMatch ? parseInt(stockMatch[1], 10) : 0;
+            console.log('Stock Debugger: Found stock in DOM:', stock);
+            return stock;
+        } catch (error) {
+            console.error('Error getting stock from DOM:', error);
+            return 0;
         }
-        
-        /**
-         * Get stock quantity from the DOM
-         * @return {number} The stock quantity or 0 if not found
-         */
-        function getStockFromDOM() {
-            try {
-                var stockText = $('.stock-availability').text().trim();
-                var stockMatch = stockText && stockText.match(/(\d+)/);
-                var stock = stockMatch ? parseInt(stockMatch[1], 10) : 0;
-                console.log('Stock Debugger: Found stock in DOM:', stock);
-                return stock;
-            } catch (error) {
-                console.error('Error getting stock from DOM:', error);
-                return 0;
+    }
+    
+    /**
+     * Initialize the stock debugger
+     */
+    function initStockDebugger() {
+        try {
+            if (!window.rentalReservedData) {
+                console.warn('No rental reservation data available');
+                return;
             }
-        }
-        
-        // Get initial stock from DOM
-        var stock = getStockFromDOM();
-
-        var reservedData = window.rentalReservedData || [];
-        var dateReservations = {};
-
-        console.log('Stock Debugger: Initializing with stock', stock, 'and', reservedData.length, 'reservations');
-
-        // Process reservations
-        reservedData.forEach(function(item) {
-            try {
-                if (!item) return;
-                
-                var startDate = parseDate(item.start);
-                var endDate = parseDate(item.end);
-                
-                // Skip if dates are invalid
-                if (!startDate || !endDate) return;
-                
-                // Mark each date in the range
-                var currentDate = new Date(startDate);
-                while (currentDate <= endDate) {
-                    var dateStr = formatDate(currentDate);
-                    if (!dateStr) {
+            
+            var data = window.rentalReservedData;
+            var $content = $('.debug-content');
+            
+            // Clear existing content
+            $content.empty();
+            
+            // Get initial stock from DOM
+            var stock = getStockFromDOM();
+            var reservedData = window.rentalReservedData || [];
+            var dateReservations = {};
+            
+            console.log('Stock Debugger: Initializing with stock', stock, 'and', reservedData.length, 'reservations');
+            
+            // Process reservations
+            reservedData.forEach(function(item) {
+                try {
+                    if (!item) return;
+                    
+                    var startDate = parseDate(item.start);
+                    var endDate = parseDate(item.end);
+                    
+                    // Skip if dates are invalid
+                    if (!startDate || !endDate) return;
+                    
+                    // Mark each date in the range
+                    var currentDate = new Date(startDate);
+                    while (currentDate <= endDate) {
+                        var dateStr = formatDate(currentDate);
+                        if (dateStr) {
+                            // Initialize date in reservations if not exists
+                            if (!dateReservations[dateStr]) {
+                                dateReservations[dateStr] = {
+                                    count: 0,
+                                    isFullyBooked: false
+                                };
+                            }
+                            
+                            // Increment reservation count
+                            dateReservations[dateStr].count += item.quantity || 1;
                             
                             // Check if this date is fully booked
                             if (dateReservations[dateStr].count >= stock) {
@@ -458,7 +488,7 @@
                     console.error('Error processing reservation:', item, error);
                 }
             });
-
+            
             // Highlight calendar dates
             highlightCalendarDates(dateReservations, stock);
             
@@ -467,31 +497,32 @@
             
             console.log('Stock Debugger: Initialization complete');
         } catch (error) {
-            console.error('Error initializing stock debugger:', error);
+            console.error('Error in initStockDebugger:', error);
         }
     }
 
     // Initialize when document is ready
     $(document).ready(function() {
-        // Initial debugger setup
-        initStockDebugger();
-        
-        // Set up MutationObserver to watch for stock changes
-        var observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                    var newStock = getStockFromDOM();
-                    if (newStock !== window.lastStock) {
-                        console.log('Stock changed from', window.lastStock, 'to', newStock);
-                        window.lastStock = newStock;
-                        // Reinitialize debugger with new stock value
-                        initStockDebugger();
+        try {
+            // Initial debugger setup
+            initStockDebugger();
+            
+            // Set up MutationObserver to watch for stock changes
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                        var newStock = getStockFromDOM();
+                        if (newStock !== window.lastStock) {
+                            console.log('Stock changed from', window.lastStock, 'to', newStock);
+                            window.lastStock = newStock;
+                            // Reinitialize debugger with new stock value
+                            initStockDebugger();
+                        }
                     }
-                }
+                });
             });
-        });
-        
-        // Start observing the stock element for changes
+            
+            // Start observing the stock element for changes
         var stockElement = document.querySelector('.stock-availability');
         if (stockElement) {
             observer.observe(stockElement, {
