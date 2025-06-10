@@ -1,27 +1,13 @@
-<div class="rental-form-section">
-                    <!-- Simple Notice - Always Visible at Top -->
-                    <!-- <div id="simple-notice" class="return-time-notice info" style="margin-bottom: 15px; background-color: #e3f2fd; border: 1px solid #90caf9; padding: 8px; border-radius: 4px;">
-                        <strong style="color: #1565c0;">שימו לב</strong>
-                        <span> - בחרו תאריכי השכרה לקבלת מידע מלא</span>
-                    </div> -->
-                    
-                    <!-- Early discount incentive message - only shown if there's an actual discount -->
-                                        <script>
-                        // Make discount values available globally
-                        window.discountType = 'percentage';
-                        window.discountValue = 50;
-                        console.log('🔄 Setting global discount values:', window.discountType, window.discountValue);
-                    </script>
-                    
-                    <h3>תאריכי השכרה</h3>
-                    <div class="rental-dates-label">תאריכי השכרה</div><div id="datepicker-container"><div class="fallback-calendar"><div class="month-header">
+<div class="fallback-calendar"><div class="month-header">
                 <div class="month-year">יוני 2025</div>
                 <button id="prevMonthBtn" class="nav-btn">&lt;</button>
                 <button id="nextMonthBtn" class="nav-btn">&gt;</button>
-            </div><div class="calendar-days-header"><div class="day-name">א</div><div class="day-name">ב</div><div class="day-name">ג</div><div class="day-name">ד</div><div class="day-name">ה</div><div class="day-name">ו</div><div class="day-name">ש</div></div><div class="calendar-days"><div class="day-cell disabled" data-date="2025-06-01" data-selectable="false">1</div><div class="day-cell disabled" data-date="2025-06-02" data-selectable="false">2</div><div class="day-cell disabled" data-date="2025-06-03" data-selectable="false">3</div><div class="day-cell disabled" data-date="2025-06-04" data-selectable="false">4</div><div class="day-cell disabled" data-date="2025-06-05" data-selectable="false">5</div><div class="day-cell disabled disabled" data-date="2025-06-06" data-selectable="false">6</div><div class="day-cell weekend disabled disabled" data-date="2025-06-07" data-selectable="false">7</div><div class="day-cell disabled disabled" data-date="2025-06-08" data-selectable="false">8</div><div class="day-cell today" data-date="2025-06-09" data-selectable="true">9</div><div class="day-cell" data-date="2025-06-10" data-selectable="true">10</div><div class="day-cell" data-date="2025-06-11" data-selectable="true">11</div><div class="day-cell" data-date="2025-06-12" data-selectable="true">12</div><div class="day-cell" data-date="2025-06-13" data-selectable="true">13</div><div class="day-cell weekend" data-date="2025-06-14" data-selectable="true">14</div><div class="day-cell" data-date="2025-06-15" data-selectable="true">15</div><div class="day-cell" data-date="2025-06-16" data-selectable="true">16</div><div class="day-cell" data-date="2025-06-17" data-selectable="true">17</div><div class="day-cell start-date selected selected-start in-range confirmed" data-date="2025-06-18" data-selectable="true">18</div><div class="day-cell in-range" data-date="2025-06-19" data-selectable="true">19</div><div class="day-cell in-range" data-date="2025-06-20" data-selectable="true">20</div><div class="day-cell weekend in-range" data-date="2025-06-21" data-selectable="true">21</div><div class="day-cell in-range" data-date="2025-06-22" data-selectable="true">22</div><div class="day-cell in-range" data-date="2025-06-23" data-selectable="true">23</div><div class="day-cell in-range" data-date="2025-06-24" data-selectable="true">24</div><div class="day-cell end-date selected selected-end in-range confirmed" data-date="2025-06-25" data-selectable="true">25</div><div class="day-cell" data-date="2025-06-26" data-selectable="true">26</div><div class="day-cell" data-date="2025-06-27" data-selectable="true">27</div><div class="day-cell weekend" data-date="2025-06-28" data-selectable="true">28</div><div class="day-cell" data-date="2025-06-29" data-selectable="true">29</div><div class="day-cell" data-date="2025-06-30" data-selectable="true">30</div></div><div class="calendar-legend">
+            </div><div class="calendar-days-header"><div class="day-name">א</div><div class="day-name">ב</div><div class="day-name">ג</div><div class="day-name">ד</div><div class="day-name">ה</div><div class="day-name">ו</div><div class="day-name">ש</div></div><div class="calendar-days"><div class="day-cell" data-date="2025-06-01" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">1</div><div class="day-cell" data-date="2025-06-02" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">2</div><div class="day-cell" data-date="2025-06-03" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">3</div><div class="day-cell" data-date="2025-06-04" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">4</div><div class="day-cell" data-date="2025-06-05" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">5</div><div class="day-cell" data-date="2025-06-06" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">6</div><div class="day-cell weekend" data-date="2025-06-07" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">7</div><div class="day-cell" data-date="2025-06-08" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">8</div><div class="day-cell" data-date="2025-06-09" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Past date">9</div><div class="day-cell today" data-date="2025-06-10" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">10</div><div class="day-cell" data-date="2025-06-11" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">11</div><div class="day-cell" data-date="2025-06-12" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">12</div><div class="day-cell" data-date="2025-06-13" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">13</div><div class="day-cell weekend" data-date="2025-06-14" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Saturday">14</div><div class="day-cell" data-date="2025-06-15" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">15</div><div class="day-cell" data-date="2025-06-16" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">16</div><div class="day-cell" data-date="2025-06-17" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">17</div><div class="day-cell" data-date="2025-06-18" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">18</div><div class="day-cell" data-date="2025-06-19" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">19</div><div class="day-cell" data-date="2025-06-20" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">20</div><div class="day-cell weekend" data-date="2025-06-21" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Saturday">21</div><div class="day-cell" data-date="2025-06-22" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">22</div><div class="day-cell" data-date="2025-06-23" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">23</div><div class="day-cell" data-date="2025-06-24" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">24</div><div class="day-cell" data-date="2025-06-25" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">25</div><div class="day-cell" data-date="2025-06-26" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">26</div><div class="day-cell" data-date="2025-06-27" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">27</div><div class="day-cell weekend" data-date="2025-06-28" data-selectable="false" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="false" data-reason="Saturday">28</div><div class="day-cell" data-date="2025-06-29" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">29</div><div class="day-cell" data-date="2025-06-30" data-selectable="true" data-stock="3" data-orders="0" data-available="3" data-fully-booked="false" data-partially-booked="false" data-is-available="true" data-reason="Available">30</div></div><div class="calendar-legend">
                 <div class="legend-item"><span class="legend-color available"></span> פנוי</div>
-                <div class="legend-item"><span class="legend-color disabled"></span> תפוס</div>
+                <div class="legend-item"><span class="legend-color disabled"></span> תאריך עבר</div>
                 <div class="legend-item"><span class="legend-color weekend"></span> שבת (סגור)</div>
+                <div class="legend-item"><span class="legend-color fully-booked"></span> מושכר במלואו</div>
+                <div class="legend-item"><span class="legend-color partially-booked"></span> מושכר חלקית</div>
             
                 <div class="legend-item">
                     <span class="legend-color early-return"></span> החזרה מוקדמת (עד 09:00)
@@ -30,69 +16,22 @@
                 <div class="legend-item">
                     <span class="legend-color return-date"></span> יום החזרה (ניתן להזמין)
                 </div>
-            </div></div></div>
-                    <div id="date-validation-message" class="validation-message success" style="display: block;">התאריכים אושרו בהצלחה: 18.06.2025 - 25.06.2025 
-        (6 ימים לחיוב) <a href="#" id="clear-date-selection" style="margin-right:10px; font-size:0.8em;">[שנה בחירה]</a></div>
-        <div class="mitnafun-breakdown" style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; background-color: #f9f9f9; border-radius: 4px;">
-          <div class="breakdown-toggle" style="cursor: pointer; padding: 5px 0;">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 16px;">פירוט תמחור לתקופת השכירות (6 ימים):</p>
-          </div>
-          <div class="breakdown-content" style="display: block;">
-            <ul style="list-style: none; padding-right: 15px; margin: 0 0 15px 0;">
-              <li style="margin-bottom: 10px; color: #0077cc;"><strong>חשוב לדעת:</strong> ימי שישי ושבת נחשבים כיום אחד בלבד לחיוב.</li>
-              <li style="margin-bottom: 10px;">יום ראשון: <span class="woocommerce-Price-amount amount"><bdi>550.00&nbsp;<span class="woocommerce-Price-currencySymbol">₪</span></bdi></span> (מחיר מלא)</li>
-              <li style="margin-bottom: 10px;">5 ימים נוספים: <span class="woocommerce-Price-amount amount"><bdi>1,375.00&nbsp;<span class="woocommerce-Price-currencySymbol">₪</span></bdi></span> (50% הנחה)</li>
-            </ul>
-            <p style="font-weight: bold; margin: 15px 0 0; border-top: 1px dashed #ddd; padding-top: 10px;">
-              <strong>סה"כ: <span class="woocommerce-Price-amount amount"><bdi>1,925.00&nbsp;<span class="woocommerce-Price-currencySymbol">₪</span></bdi></span> (חסכת <span class="woocommerce-Price-amount amount"><bdi>1,375.00&nbsp;<span class="woocommerce-Price-currencySymbol">₪</span></bdi></span>)</strong>
-            </p>
-          </div>
-        </div>
-        
-                    
-                    <div id="max-duration-message" class="validation-message info" style="display: none">ניתן להזמין עד <span id="max-days">14</span> ימים</div>
-                    
-                    <!-- Price Breakdown Section -->
-                    <div id="price-breakdown-container" class="price-breakdown-container" style="display: none; margin: 15px 0; padding: 15px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px;">
-                        <h4 style="margin-top: 0; margin-bottom: 10px; color: #333; font-size: 16px;">פירוט תמחור לתקופת השכירה:</h4>
-                        <ul id="price-breakdown-list" style="margin: 0 0 10px 0; padding-right: 20px;">
-                            <!-- Will be populated by JavaScript -->
-                        </ul>
-                        <p id="price-breakdown-total" style="margin: 5px 0 0; font-weight: bold; color: #333;">
-                            <!-- Will be populated by JavaScript -->
-                        </p>
-                    </div>
-                    
-                    <div class="debug-marker" style="display:none;">Price calculator running</div><div class="debug-marker" style="display:none;">Price calculator running</div><div class="debug-marker" style="display:none;">Price calculator running</div><div class="debug-marker" style="display:none;">Price calculator running</div><form class="cart" action="https://mitnafun.local/product/%d7%9b%d7%95%d7%97-%d7%a4%d7%99-%d7%92%d7%99%d7%99/" method="post" enctype="multipart/form-data">
-                        <input type="hidden" id="rental_dates" name="rental_dates" class="date-picker-field" value="18.06.2025 - 25.06.2025">
-                        <input type="hidden" id="rental_hours" name="rental_hours">
-                        <div style="display: none">
-                            <div class="quantity">
-		<label class="screen-reader-text" for="quantity_684629d57deff">כמות של כוח פי ג'יי</label>
-	<input type="number" id="quantity_684629d57deff" class="input-text qty text" name="quantity" value="1" aria-label="כמות המוצר" size="4" min="0" max="" step="1" placeholder="" inputmode="numeric" autocomplete="off">
-	</div>
-                        </div>
-                        <div id="return-time-notice" class="return-time-notice info" style="margin-bottom: 15px; background-color: rgb(227, 242, 253); border: 1px solid rgb(144, 202, 249); padding: 8px; border-radius: 4px; display: none;">
-                            <strong>שימו לב!</strong> החזרת הציוד מתבצעת עד השעה 10:00 .
-                        </div>
-                        <div class="btn-wrap">
-                            <button type="submit" name="add-to-cart" value="112" class="single_add_to_cart_button btn-default btn-blue btn-mini" aria-disabled="false" style="opacity: 1; cursor: pointer;">הוסף לסל</button>
-                            <button type="submit" name="add-to-cart" value="112" class="single_add_to_cart_button btn-redirect btn-default btn-yellow btn-mini" aria-disabled="false" style="opacity: 1; cursor: pointer;">הזמן</button>
-                            <div class="rental-notice" style="margin-top: 10px; font-size: 13px; color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 8px; border-radius: 4px;">
-                                <strong>שימו לב:</strong> יש לבחור תאריכים לפני ההזמנה. המערכת תבדוק את זמינות התאריכים בעת ההזמנה.
-                            </div>
-                        <input type="hidden" name="redirect" value="">
-                    
-                    
-                                    </div><input type="hidden" id="rental_start_date" name="rental_start_date" value="18.06.2025"><input type="hidden" id="rental_end_date" name="rental_end_date" value="25.06.2025"><input type="hidden" id="rental_days" name="rental_days" value="6"><input type="hidden" id="calculated_total_price" name="calculated_total_price" value="1925"></form>
-            </div>
+            </div></div>
 
-            when pressing on this
-            <button type="submit" name="add-to-cart" value="112" class="single_add_to_cart_button btn-default btn-blue btn-mini" aria-disabled="false" style="opacity: 1; cursor: pointer;">הוסף לסל</button>
+            n
+Product ID: 461
+Initial Stock: 3 (from _initial_stock meta)
+Current Stock: 21 (from WooCommerce)
+Manage Stock: Yes
+Stock Status: instock
+Reserved Dates (2)
+Order ID	Status	Start Date	End Date	Quantity
+#885	On-hold	26.06.2025	30.06.2025	1
+#882	On-hold	10.06.2025	17.06.2025	1
+Buffer Dates (0)
+Buffer dates are not currently in use.
 
-            what i expect-
-            adding the product to the cart- a small refresh but staying on the product percentage
-            what happens now-
-            the user is redirected to the checkout
+Active Rentals (0)
+No active rentals found for this product.
 
-            
+Debug Controls

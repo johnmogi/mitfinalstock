@@ -28,6 +28,9 @@ class Stock_Debugger {
         // Add reservation data to page
         add_action('wp_footer', [$this, 'output_reserved_dates_json'], 5);
         
+        // Add calendar availability data for all users
+        add_action('wp_footer', [$this, 'output_calendar_availability_data'], 20);
+        
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         
@@ -337,10 +340,57 @@ class Stock_Debugger {
     }
     
     /**
+     * Output calendar availability data for all users
+     * This makes the stock and reservation data available to the calendar
+     */
+    public function output_calendar_availability_data() {
+        if (!is_product()) {
+            return;
+        }
+        
+        global $product;
+        
+        if (!$product) {
+            return;
+        }
+        
+        $product_id = $product->get_id();
+        $reserved_dates = $this->get_reserved_dates($product_id);
+        
+        // Get initial stock from custom meta or use current stock if not set
+        $initial_stock = (int) get_post_meta($product_id, '_initial_stock', true);
+        if (!$initial_stock) {
+            $initial_stock = $product->get_stock_quantity();
+            if (!$initial_stock) {
+                $initial_stock = 1; // Default to 1 if no stock is set
+            }
+            update_post_meta($product_id, '_initial_stock', $initial_stock);
+        }
+        
+        // Format reservation data for the calendar
+        $calendar_data = array(
+            'stock' => $initial_stock,
+            'reservations' => array()
+        );
+        
+        // Process reservations
+        if (!empty($reserved_dates)) {
+            foreach ($reserved_dates as $date => $quantity) {
+                $calendar_data['reservations'][$date] = $quantity;
+            }
+        }
+        
+        // Output the data as a JSON object in a script tag
+        echo '<script id="calendar-availability-data" type="application/json">';
+        echo wp_json_encode($calendar_data);
+        echo '</script>';
+    }
+    
+    /**
      * Render debug output in footer
      */
     public function render_debug_output() {
-        if (!is_product() || !current_user_can('manage_options')) {
+        if (!is_product()) {
             return;
         }
         
@@ -494,11 +544,12 @@ class Stock_Debugger {
             WHERE oim.meta_key = 'Rental Dates'
             AND oim_pid.meta_key = '_product_id' 
             AND oim_pid.meta_value = %d
-            AND o.status IN ('wc-processing', 'wc-on-hold', 'wc-pending', 'wc-rental-confirmed')
+            AND o.status IN ('wc-processing', 'wc-on-hold', 'wc-pending', 'wc-rental-confirmed', 'on-hold', 'pending', 'processing')
             ORDER BY o.id DESC",
             $product_id
         ));
         
+        // Create an associative array with dates as keys and quantities as values
         $reservations = [];
         
         foreach ($results as $row) {
@@ -508,21 +559,51 @@ class Stock_Debugger {
             }
             
             try {
-                $start_date = new DateTime(trim($dates[0]));
-                $end_date = new DateTime(trim($dates[1]));
+                // Parse start and end dates
+                $start_date_str = trim($dates[0]);
+                $end_date_str = trim($dates[1]);
+                
+                // Convert from d.m.Y format to Y-m-d for JavaScript
+                $start_parts = explode('.', $start_date_str);
+                $end_parts = explode('.', $end_date_str);
+                
+                if (count($start_parts) !== 3 || count($end_parts) !== 3) {
+                    error_log('Invalid date format: ' . $row->rental_dates);
+                    continue;
+                }
+                
+                $start_date = new DateTime($start_parts[2] . '-' . $start_parts[1] . '-' . $start_parts[0]);
+                $end_date = new DateTime($end_parts[2] . '-' . $end_parts[1] . '-' . $end_parts[0]);
                 
                 // Skip if the reservation has already ended
                 if ($end_date < $today) {
                     continue;
                 }
                 
-                $reservations[] = [
-                    'order_id' => $row->order_id,
-                    'status' => $row->status,
-                    'start_date' => $start_date->format('d.m.Y'),
-                    'end_date' => $end_date->format('d.m.Y'),
-                    'quantity' => (int)$row->quantity
-                ];
+                // Get quantity from order
+                $quantity = (int)$row->quantity;
+                if ($quantity <= 0) {
+                    $quantity = 1; // Default to 1 if quantity is not set
+                }
+                
+                // Create a period iterator for the date range
+                $interval = new DateInterval('P1D');
+                $daterange = new DatePeriod($start_date, $interval, $end_date->modify('+1 day')); // Include end date
+                
+                // Add each date in the range to the reservations array
+                foreach ($daterange as $date) {
+                    $date_str = $date->format('Y-m-d');
+                    
+                    // Add or increment the quantity for this date
+                    if (isset($reservations[$date_str])) {
+                        $reservations[$date_str] += $quantity;
+                    } else {
+                        $reservations[$date_str] = $quantity;
+                    }
+                }
+                
+                // Log for debugging
+                error_log("Processed reservation: Order #{$row->order_id}, Dates: {$row->rental_dates}, Quantity: {$quantity}");
                 
             } catch (Exception $e) {
                 error_log('Error processing reservation dates: ' . $e->getMessage());
